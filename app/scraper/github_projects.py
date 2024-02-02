@@ -42,9 +42,10 @@ async def get_github_projects(config: Settings, bot: Bot) -> None:
             url=make_markdown(repository.url), name=make_markdown(repository.name),
             description=make_markdown(description), author_name=make_markdown(repository.author)
         )
-
+        topic_id = int(config.topic_id) if config.topic_id else None
         await bot.send_photo(
             chat_id=config.chat_id,
+            message_thread_id=topic_id,
             photo=types.input_file.FSInputFile(await get_image(repository, bot)),
             caption=text,
             parse_mode=ParseMode.MARKDOWN_V2,

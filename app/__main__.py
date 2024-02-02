@@ -40,7 +40,7 @@ async def aiogram_on_startup_polling(b: Bot, scheduler: AsyncIOScheduler, config
     await on_startup_notify(bot=b, config=config)
 
     scheduler.add_job(
-        get_github_projects, 'interval', seconds=20, kwargs={"bot": bot, "config": config}
+        get_github_projects, 'interval', hours=1, kwargs={"bot": bot, "config": config}
     )
     scheduler.start()
 

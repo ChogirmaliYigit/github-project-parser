@@ -1,5 +1,7 @@
 import os
 
+from typing import List
+
 from piccolo.conf.apps import AppRegistry
 from piccolo.engine.sqlite import SQLiteEngine
 
@@ -12,12 +14,11 @@ class Settings(BaseSettings):
     piccolo_conf: str = 'app.config_reader'
 
     github_base_url: str = "https://api.gitterapp.com/repositories"
-    github_access_token: str
     bot_token: str
     chat_id: str
-    admins: list[int]
+    topic_id: str = ""
+    admins: List[int]
     webhook_base_url: str
-    languages: list[str]
 
     class Config:
         env_file = '.env'

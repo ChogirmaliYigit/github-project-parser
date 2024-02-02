@@ -1,42 +1,35 @@
-import asyncio
 import io
-import random
+from datetime import datetime
 
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 from aiogram import Bot
 from app.models import Response
 
-
 TEMPLATE_IMAGE_PATH = "template.jpg"
 ESCAPE_CHARS_MARKDOWN = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-POWERED_BY = "Powered by {}"
+POWERED_BY = "Powered by {} | {}"
 
 
 async def get_repo_detail(repo: Response) -> tuple:
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://api.github.com/users/{repo.author}/followers") as response:
-            followers = len(await response.json()) if type(await response.json()) is list else 0
-
-        await asyncio.sleep(random.choice([4, 5, 6]))
-
         async with session.get(f"https://api.github.com/repos/{repo.author}/{repo.name}/issues") as response:
             issues = len(await response.json())
-
-        await asyncio.sleep(random.choice([4, 5, 6]))
 
         async with session.get(f"https://api.github.com/repos/{repo.author}/{repo.name}/topics") as response:
             data = await response.json()
             topics = ""
+            max_length = 45
             for topic in data.get("names", []):
-                topic = f"#{topic} "
-                if 55 - len(topics.split("\n")[-1]) <= len(topic):
-                    topics += "\n"
-                topics += topic
-                if topics.count("\n") == 3:
+                topics += f"#{topic} "
+                if len(topics) >= max_length:
                     break
 
-        return followers, issues, topics
+            topics = topics.strip()
+            if len(topics) > max_length:
+                topics = topics[:max_length] + "..."
+
+        return issues, topics
 
 
 async def get_rounded_image(img_link: str, width: int, height: int):
@@ -55,7 +48,7 @@ async def get_rounded_image(img_link: str, width: int, height: int):
 
 async def get_image(repo: Response, bot: Bot):
     bot_properties = await bot.get_me()
-    followers, issues, topics = await get_repo_detail(repo)
+    issues, topics = await get_repo_detail(repo)
 
     output_path = f"assets/result_{repo.author}_{repo.name}.jpg"
     base_image = Image.open(TEMPLATE_IMAGE_PATH)
@@ -69,71 +62,93 @@ async def get_image(repo: Response, bot: Bot):
     draw = ImageDraw.Draw(result_image)
 
     # Repository name
-    font = ImageFont.truetype("fonts/Roboto-Regular.ttf", size=25)
-    draw.text((135, 25), repo.name, font=font, fill="white")
+    draw.text(
+        (135, 25),
+        repo.name,
+        font=ImageFont.truetype("fonts/Roboto-Regular.ttf", size=25),
+        fill="white"
+    )
 
     # Owner name and followers
-    font = ImageFont.truetype("fonts/Roboto-Regular.ttf", size=18)
-    text = f"by {repo.author}"
-    if followers:
-        text += f" ({await make_number_readable(followers)} followers)"
     draw.text(
         (135, 75),
-        text,
-        font=font,
+        f"by {repo.author}",
+        font=ImageFont.truetype("fonts/Roboto-Regular.ttf", size=18),
         fill="gray"
     )
 
     # Repository's language
     if repo.language:
-        font = ImageFont.truetype("fonts/Roboto-Regular.ttf", size=15)
-        draw.text((135, 110), repo.language, font=font, fill=repo.language_color or "white")
+        draw.text(
+            (135, 110),
+            repo.language,
+            font=ImageFont.truetype("fonts/Roboto-Regular.ttf", size=15),
+            fill=repo.language_color or "white"
+        )
 
     # Repository's stars
-    font = ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17)
-    draw.text((52, 235), await make_number_readable(repo.stars), font=font, fill="white")
+    draw.text(
+        (52, 235),
+        await make_number_readable(repo.stars),
+        font=ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17),
+        fill="white"
+    )
 
     # Repository's forks
-    font = ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17)
-    draw.text((170, 235), await make_number_readable(repo.forks), font=font, fill="white")
+    draw.text(
+        (170, 235),
+        await make_number_readable(repo.forks),
+        font=ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17),
+        fill="white"
+    )
 
     # Repository's open issues
-    font = ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17)
-    draw.text((300, 235), await make_number_readable(issues), font=font, fill="white")
+    draw.text(
+        (300, 235),
+        await make_number_readable(issues),
+        font=ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17),
+        fill="white"
+    )
 
     # Repository's contributors
-    font = ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17)
-    draw.text((400, 235), await make_number_readable(len(repo.built_by)), font=font, fill="white")
+    draw.text(
+        (400, 235),
+        await make_number_readable(len(repo.built_by)),
+        font=ImageFont.truetype("fonts/Roboto-Regular.ttf", size=17),
+        fill="white"
+    )
 
     # Repository's topics
-    font = ImageFont.truetype("fonts/Roboto-Bold.ttf", size=18)
-    draw.text((30, 285), topics, font=font, fill="blue", antialias=True)
+    draw.text(
+        (30, 285),
+        topics,
+        font=ImageFont.truetype("fonts/Roboto-Bold.ttf", size=18),
+        fill="white",
+    )
 
     # Built by users
     start_position_x = 30
-    start_position_y = 410
-    count = 0
-    for user in repo.built_by:
-        if count == 30:
-            break
-
-        img = await get_rounded_image(user.avatar, width=60, height=60)
+    start_position_y = 285 if not topics else 320
+    max_length = 7
+    for user in repo.built_by[:max_length]:
+        img = await get_rounded_image(user.avatar, width=50, height=50)
         result_image.paste(img, (start_position_x, start_position_y), img)
+        start_position_x += 55
 
-        if count != 0 and count % 10 == 0:
-            start_position_x = 30
-            start_position_y += 65
-        else:
-            start_position_x += 65
-
-        count += 1
+    if len(repo.built_by) > max_length:
+        draw.ellipse([(420, start_position_y), (470, start_position_y + 50)], fill="#050A30")
+        draw.text(
+            (430, start_position_y + 20),
+            f"+ {await make_number_readable(len(repo.built_by[max_length:]))}",
+            font=ImageFont.truetype("fonts/Roboto-Bold.ttf", size=12),
+            fill="white"
+        )
 
     # Powered by text
-    font = ImageFont.truetype("fonts/Roboto-Bold.ttf", size=15)
     draw.text(
-        (60, 600),
-        POWERED_BY.format(f"https://t.me/{bot_properties.username}"),
-        font=font,
+        (40, 450),
+        POWERED_BY.format(f"@{bot_properties.username}", datetime.now().strftime("%d.%m.%Y, %H:%M:%S")),
+        font=ImageFont.truetype("fonts/Roboto-Bold.ttf", size=15),
         fill="white"
     )
 
