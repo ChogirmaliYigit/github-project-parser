@@ -1,5 +1,6 @@
 import sys
 import logging
+import asyncio
 from aiogram import Bot
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp.web import run_app
@@ -11,7 +12,7 @@ from app.bot.notify_admin import on_startup_notify
 from app.bot.loader import dispatcher, bot
 from app.scraper.github_projects import get_github_projects
 from app.db.tables import PROJECT_TABLES
-from app.config_reader import Settings
+from app.config_reader import Settings, config as settings_config
 
 
 async def connect_db(config: Settings, close=False, persist=True) -> None:
@@ -40,7 +41,7 @@ async def aiogram_on_startup_polling(b: Bot, scheduler: AsyncIOScheduler, config
     await on_startup_notify(bot=b, config=config)
 
     scheduler.add_job(
-        get_github_projects, 'interval', hours=1, kwargs={"bot": bot, "config": config}
+        get_github_projects, 'interval', days=1, kwargs={"bot": bot, "config": config}
     )
     scheduler.start()
 
@@ -57,10 +58,9 @@ def main():
     dispatcher.include_router(router)
 
     scheduler = AsyncIOScheduler()
-    config = Settings()
     dispatcher['scheduler'] = scheduler
     dispatcher["b"] = bot
-    dispatcher['config'] = config
+    dispatcher['config'] = settings_config
 
     app = Application()
     app["bot"] = bot
@@ -68,7 +68,7 @@ def main():
     SimpleRequestHandler(dispatcher=dispatcher, bot=bot).register(app, path="/webhook")
     setup_application(app, dispatcher, bot=bot)
 
-    run_app(app, host="127.0.0.1", port=8085)
+    run_app(app, host=settings_config.server_host, port=settings_config.server_port)
 
 
 if __name__ == "__main__":

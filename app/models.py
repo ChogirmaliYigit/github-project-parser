@@ -13,7 +13,7 @@ class Response(BaseModel):
     name: str = Field()
     avatar: str = Field()
     url: str = Field()
-    description: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default="")
     language: Optional[str] = None
     language_color: Optional[str] = Field(alias="languageColor", default=None)
     stars: int = Field()

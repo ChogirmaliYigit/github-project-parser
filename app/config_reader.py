@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     admins: List[int]
     webhook_base_url: str
 
+    server_host: str = "localhost"
+    server_port: int = 8000
+
     class Config:
         env_file = '.env'
         env_file_encoding = 'utf-8'
@@ -28,3 +31,5 @@ class Settings(BaseSettings):
 DB = SQLiteEngine('main.db')
 
 APP_REGISTRY = AppRegistry(apps=['app.db.piccolo_app'])
+
+config = Settings()
